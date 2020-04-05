@@ -2,7 +2,6 @@ package gui.components;
 
 import edu.hws.jcm.data.Expression;
 import edu.hws.jcm.data.Parser;
-import edu.hws.jcm.data.SimpleFunction;
 import edu.hws.jcm.data.Variable;
 import edu.hws.jcm.draw.DisplayCanvas;
 import edu.hws.jcm.draw.Graph1D;
@@ -15,10 +14,14 @@ import javax.swing.*;
 import javax.swing.border.Border;
 import javax.swing.border.LineBorder;
 import java.awt.*;
-import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.FocusEvent;
 import java.awt.event.FocusListener;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.util.Scanner;
 
 public class ControlPanel extends JPanel {
 
@@ -32,8 +35,13 @@ public class ControlPanel extends JPanel {
     private static Border greenBorder = new LineBorder(Color.GREEN);
     private static Border redBorder = new LineBorder(Color.RED);
     private JTextArea output;
+    JTextField leftBorderTextField;
+    JTextField rightBorderTextField;
+    JTextField accTextField;
     private DisplayCanvas canvas;
     private Graph1D graph;
+    private JFileChooser fileChooser = new JFileChooser();
+
     public ControlPanel(DisplayCanvas canv, Graph1D graphic) {
         super();
         this.canvas = canv;
@@ -54,14 +62,18 @@ public class ControlPanel extends JPanel {
         methodPanel.add(new JLabel("Левая граница"));
         methodPanel.add(new JLabel("Правая граница"));
         methodPanel.add(new JLabel("Точность"));
-        JTextField leftBorderTextField = new JTextField();
-        JTextField rightBorderTextField = new JTextField();
-        JTextField accTextField = new JTextField();
+        leftBorderTextField = new JTextField();
+        rightBorderTextField = new JTextField();
+        accTextField = new JTextField();
+        JButton chooseFileButton = new JButton("Данные из файла");
         JButton solveButton = new JButton("Решить");
+        JButton printInFileButton = new JButton("Вывод в файл");
         methodPanel.add(leftBorderTextField);
         methodPanel.add(rightBorderTextField);
         methodPanel.add(accTextField);
+        methodPanel.add(chooseFileButton);
         methodPanel.add(solveButton);
+        methodPanel.add(printInFileButton);
 
         JLabel outputLabel = new JLabel("Вывод");
         output = new JTextArea();
@@ -109,7 +121,7 @@ public class ControlPanel extends JPanel {
                 expTextChanged(expTextField, methodPanel);
             }
         });
-        leftBorderTextField.addActionListener(e -> leftBorderTextChanged(leftBorderTextField));
+        leftBorderTextField.addActionListener(e -> leftBorderTextChanged());
         leftBorderTextField.addFocusListener(new FocusListener() {
             @Override
             public void focusGained(FocusEvent focusEvent) {
@@ -118,10 +130,10 @@ public class ControlPanel extends JPanel {
 
             @Override
             public void focusLost(FocusEvent focusEvent) {
-                leftBorderTextChanged(leftBorderTextField);
+                leftBorderTextChanged();
             }
         });
-        rightBorderTextField.addActionListener(e -> rightBorderTextChanged(rightBorderTextField));
+        rightBorderTextField.addActionListener(e -> rightBorderTextChanged());
         rightBorderTextField.addFocusListener(new FocusListener() {
             @Override
             public void focusGained(FocusEvent focusEvent) {
@@ -130,10 +142,10 @@ public class ControlPanel extends JPanel {
 
             @Override
             public void focusLost(FocusEvent focusEvent) {
-                rightBorderTextChanged(rightBorderTextField);
+                rightBorderTextChanged();
             }
         });
-        accTextField.addActionListener(e -> accTextChanged(accTextField));
+        accTextField.addActionListener(e -> accTextChanged());
         accTextField.addFocusListener(new FocusListener() {
             @Override
             public void focusGained(FocusEvent focusEvent) {
@@ -142,10 +154,12 @@ public class ControlPanel extends JPanel {
 
             @Override
             public void focusLost(FocusEvent focusEvent) {
-                accTextChanged(accTextField);
+                accTextChanged();
             }
         });
+        chooseFileButton.addActionListener(e -> chooseFile());
         solveButton.addActionListener(e -> solve());
+        printInFileButton.addActionListener(e -> printInFile());
     }
 
     private void solve()  {
@@ -164,23 +178,58 @@ public class ControlPanel extends JPanel {
                         answer = NonLinearEquationsSolver.solveWithIterationMethod(func, leftBorder, rightBorder, acc);
                         break;
                     case NONE:
-                        new ToastMessage("Метод не выбран", 3000);
+                        showMessage("Метод не выбран");
                         break;
                 }
-                if(answer != null) {
                     output.setText("X = " + (Math.round(answer.x * 1000.0) / 1000.0) +
                             "\nf(X) = " + Math.round(answer.fX * 1000.0) / 1000.0 +
                             "\nN = " + answer.n);
                     graph.setFunction(func);
                     canvas.getCoordinateRect().setLimits(leftBorder - 3, rightBorder + 3, -20, 20);
-                }else{
-                    new ToastMessage("Несколько корней", 3000).setVisible(true);
-                }
-            } catch (Exception e) {
-                new ToastMessage(e.getMessage(), 3000);
+            } catch (NoRootException e) {
+                showMessage(e.getLocalizedMessage());
             }
         }else{
-            new ToastMessage("Введите все данные корректно", 3000).setVisible(true);
+            showMessage("Введите все данные корректно");
+        }
+    }
+
+    private void chooseFile() {
+        fileChooser.setDialogTitle("Выбрать файл");
+        fileChooser.setFileSelectionMode(JFileChooser.FILES_ONLY);
+        int result = fileChooser.showSaveDialog(this.getParent());
+        if (result == JFileChooser.APPROVE_OPTION ) {
+            try {
+                Scanner scn = new Scanner(new FileInputStream(fileChooser.getSelectedFile()));
+                isLeftBorderValid = false;
+                isRightBorderValid = false;
+                isAccValid = false;
+                leftBorderTextField.setText(String.valueOf(scn.nextDouble()));
+                leftBorderTextChanged();
+                rightBorderTextField.setText(String.valueOf(scn.nextDouble()));
+                rightBorderTextChanged();
+                accTextField.setText(String.valueOf(scn.nextDouble()));
+                accTextChanged();
+            } catch (FileNotFoundException e) {
+                showMessage("Файл не найден");
+            }catch(Exception e){
+                showMessage("Данные в файле введены некорректно");
+            }
+        }
+    }
+
+    private void printInFile()  {
+        fileChooser.setDialogTitle("Выбрать файл");
+        fileChooser.setFileSelectionMode(JFileChooser.FILES_ONLY);
+        int result = fileChooser.showSaveDialog(this.getParent());
+        if (result == JFileChooser.APPROVE_OPTION ) {
+            try {
+                FileWriter fw = new FileWriter(fileChooser.getSelectedFile());
+                fw.write(output.getText());
+                fw.flush();
+            } catch (IOException e) {
+                showMessage("Ошибка вывода");
+            }
         }
     }
 
@@ -193,48 +242,64 @@ public class ControlPanel extends JPanel {
             graph.setFunction(func);
             canvas.doRedraw();
         } catch (Exception ex) {
-            new ToastMessage("Неверно введено уравнение", 3000).setVisible(true);
+            showMessage("Неверно введено уравнение");
             isExpValid = false;
             expTextField.setBorder(redBorder);
             methodPanel.setVisible(false);
         }
     }
 
-    private void leftBorderTextChanged(JTextField leftBorderTextField){
+    private void leftBorderTextChanged(){
         try {
             leftBorder = Double.parseDouble(leftBorderTextField.getText());
+            if(isRightBorderValid && leftBorder >= rightBorder) {
+                showMessage("Левая граница должна быть меньше правой");
+                return;
+            }
             isLeftBorderValid = true;
             leftBorderTextField.setBorder(greenBorder);
         } catch (NumberFormatException ex) {
-            new ToastMessage("Неверно введена левая граница", 3000).setVisible(true);
+            showMessage("Неверно введена левая граница");
             isLeftBorderValid = false;
             leftBorderTextField.setBorder(redBorder);
         }
     }
 
-    private void rightBorderTextChanged(JTextField rightBorderTextField){
+    private void rightBorderTextChanged(){
         try {
             rightBorder = Double.parseDouble(rightBorderTextField.getText());
+            if(isLeftBorderValid && leftBorder >= rightBorder) {
+                showMessage("Левая граница должна быть меньше правой");
+                return;
+            }
             isRightBorderValid = true;
             rightBorderTextField.setBorder(greenBorder);
         } catch (NumberFormatException ex) {
-            new ToastMessage("Неверно введена правая граница", 3000).setVisible(true);
+            showMessage("Неверно введена правая граница");
             isRightBorderValid = false;
             rightBorderTextField.setBorder(redBorder);
         }
     }
 
-    private void accTextChanged(JTextField accTextField){
+    private void accTextChanged(){
         try {
             acc = Double.parseDouble(accTextField.getText());
+            if(acc <= 0){
+                showMessage("Точность должна быть положительной");
+            }
             isAccValid = true;
             accTextField.setBorder(greenBorder);
         } catch (NumberFormatException ex) {
-            new ToastMessage("Неверно введена точность", 3000).setVisible(true);
+            showMessage("Неверно введена точность");
             isAccValid = false;
             accTextField.setBorder(redBorder);
         }
     }
+
+    private void showMessage(String message){
+        JOptionPane.showMessageDialog(this.getParent(), message);
+    }
+
     private enum Methods{
         MID_DIVISION,
         NEWTON,

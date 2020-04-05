@@ -13,6 +13,7 @@ import java.awt.*;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseWheelEvent;
 import java.awt.event.MouseWheelListener;
+import java.util.ArrayList;
 
 public class GUI {
 
@@ -22,22 +23,28 @@ public class GUI {
 
     private void generateView(){
         JFrame mainFrame = new JFrame("Lab 2");
-        mainFrame.setSize(Toolkit.getDefaultToolkit().getScreenSize());
-        mainFrame.setResizable(false);
-        mainFrame.setLayout(new GridLayout(1, 2));
-
-        JPanel graphicPanel = new JPanel();
-
+        mainFrame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
         int width = Toolkit.getDefaultToolkit().getScreenSize().width;
         int height = Toolkit.getDefaultToolkit().getScreenSize().height;
-        //CoordinateRect rect = new CoordinateRect(-10, 10, -30, 30);
+        //mainFrame.setSize(Toolkit.getDefaultToolkit().getScreenSize());
+        mainFrame.setSize(width / 2, height / 2);
+        //mainFrame.setResizable(false);
+        GridLayout gl = new GridLayout(1, 2);
+        gl.setHgap(5);
+        gl.setVgap(5);
+        mainFrame.setLayout(gl);
+
+        JPanel graphicPanel = new JPanel();
+        graphicPanel.setLayout(new BoxLayout(graphicPanel, BoxLayout.Y_AXIS));
+
+
+
         Dimension prSize = new Dimension(width/2, height);
         CoordinateRect rect = new CoordinateRect(-10, 10, -20, 20);
         DisplayCanvas canvas = new DisplayCanvas(rect);
         rect.add(new Axes("X", "Y"));
         rect.add(new Panner());
-        canvas.setSize(prSize);
-        canvas.setPreferredSize(prSize);
+        //canvas.setPreferredSize(prSize);
         rect.add(new DrawBorder());
         canvas.addMouseWheelListener(new MouseWheelListener() {
             @Override
@@ -50,6 +57,10 @@ public class GUI {
         Graph1D gr = new Graph1D();
         rect.add(gr);
         graphicPanel.add(canvas);
+        JTextArea jta = new JTextArea("Используйте ПКМ для перемещения графика и\nколесико мыши для приближения или отдаления.");
+        jta.setEditable(false);
+        jta.setMaximumSize(new Dimension(width / 2, height / 8));
+        graphicPanel.add(jta);
         ControlPanel controlPanel = new ControlPanel(canvas, gr);
 
         mainFrame.add(graphicPanel);
